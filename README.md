@@ -8,20 +8,20 @@ Code Generation - Generates code for parsing
 Compilation - Compiles and loads the generated parser
 
 ## Project Structure
-152compiler/
-packages/
-├── analyzer/           
-│   ├── analyzer_test.py 
-│   ├── symbols.py       
-│   └── types.py         
-├── compiler/            
-│   ├── compiler.py      
-│   ├── generator.py     
-│   └── templates.py     
-├── lexer/               
-│   ├── lexer.py         
-│   └── lexer_test.py    
-└── main.py              
+    152compiler2/
+    ├── packages/
+    │ ├── analyzer/ 
+    │ │ ├── analyzer_test.py
+    │ │ ├── reflect.py
+    │ │ └── types.py
+    │ ├── compiler/ 
+    │ │ ├── compiler.py
+    │ │ ├── generator.py
+    │ │ └── templates.py
+    │ └── lexer/ 
+    │ │ ├── lexer.py
+    │ │ └── lexer_test.py
+    │ ├── main.py  
 
 
 ## Features
