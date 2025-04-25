@@ -3,10 +3,26 @@
 ## Description
 Implementation Overview
 The project consists of three main components:
-
 Struct Analysis - Analyzes python structs
 Code Generation - Generates code for parsing
 Compilation - Compiles and loads the generated parser
+
+## Project Structure
+152compiler/
+packages/
+├── analyzer/           
+│   ├── analyzer_test.py 
+│   ├── symbols.py       
+│   └── types.py         
+├── compiler/            
+│   ├── compiler.py      
+│   ├── generator.py     
+│   └── templates.py     
+├── lexer/               
+│   ├── lexer.py         
+│   └── lexer_test.py    
+└── main.py              
+
 
 ## Features
 - Key feature 1: Struct Analysis
