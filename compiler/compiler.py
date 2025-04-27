@@ -75,7 +75,10 @@ def compile_parser(cstruct: CStruct, output_dir: str) -> None:
 
     # Generate C code
     c_code = generate_c_code(cstruct)
-
+    # Ensure the C code contains the expected structure
+    if "}\n" not in c_code:
+        raise ValueError("Generated C code does not contain the expected closing brace.")
+    
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 

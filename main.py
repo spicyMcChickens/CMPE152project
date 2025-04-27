@@ -1,49 +1,32 @@
 import json
-from typing import Dict, Any
+from dataclasses import dataclass, field
+from analyzer.types import StructField, StructType
+from analyzer.reflect import breakdown_struct
+from compiler.compiler import *
+from lexer.lexer import *
+from typing import  Dict, Any
 
-# Define the Student class with annotations, similar to the Go struct
+@dataclass
 class Student:
+    first_name: str
+    last_name: str
+    student_id: int
+    currently_enrolled: bool
+
     def __init__(self, first_name: str, last_name: str, student_id: int, currently_enrolled: bool):
         self.first_name = first_name
         self.last_name = last_name
         self.student_id = student_id
         self.currently_enrolled = currently_enrolled
 
-
-# Assuming these are the same as in Go (you would need to implement these)
-class Analyzer:
-    @staticmethod
-    def analyze_struct(cls) -> Dict[str, Any]:
-        # Mimicking the field analysis (reflection in Go)
-        # This function returns the structure of the class
-        field_info = []
-        for field in cls.__annotations__:
-            field_info.append({
-                "name": field,
-                "type": cls.__annotations__[field]
-            })
-        return field_info
-
-
-class Compiler:
-    @staticmethod
-    def compile_and_build(c_struct: Dict[str, Any]):
-        # Mimic compilation and build in Python (can be a mock here)
-        return Parser(c_struct)
-
-class Parser:
-    def __init__(self, c_struct):
-        self.c_struct = c_struct
-
-    def parse(self, json_data: str):
-        # Parse the JSON data into a dictionary
-        data = json.loads(json_data)
-        result = {}
-        for field in self.c_struct['Fields']:
-            field_name = field["name"]
-            result[field_name] = data.get(field_name, None)
-        return result
-
+# Function to map Python types to C types
+def map_python_type_to_c_type(python_type: str) -> str:
+    type_mapping = {
+        "str": "char*",
+        "int": "int",
+        "bool": "bool"
+    }
+    return type_mapping.get(python_type, None)
 
 def main():
     # Example JSON data for testing
@@ -56,22 +39,31 @@ def main():
     }
     '''
 
-    # 1. Analyze the struct using reflection (in Python, we use class annotations)
-    field_infos = Analyzer.analyze_struct(Student)
-    
-    # 2. Create CStruct representation
-    c_struct = {
-        "Name": "Student",
-        "Fields": field_infos
-    }
+    # 1. Analyze the struct using the Analyzer package
+    field_infos = breakdown_struct(Student)
 
-    # 3. Compile the parser
-    parser = Compiler.compile_and_build(c_struct)
+    # Convert field information into StructField objects
+    struct_fields = [StructField(name=field.name,  type=field.type) for field in field_infos.fields]
 
-    # 4. Parse the JSON data
-    result = parser.parse(json_data)
+    # 2. Create a StructType representation
+    c_struct = StructType(name="Student", fields=struct_fields)
 
-    # 5. Print the results
+    # 3. Convert StructType to CStruct for compilation
+    c_fields = []
+    for field in struct_fields:
+        c_type = map_python_type_to_c_type(field.type.__name__)
+        if c_type is None:
+            raise ValueError(f"Unsupported Python type: {field.type}")
+        c_fields.append(FieldInfo(name=field.name, ctype=c_type))
+    cstruct = CStruct(name="Student", fields=c_fields)
+
+    # 4. Compile the parser using the Compiler package
+    parser = compile_and_build(cstruct)
+
+    # 5. Parse the JSON data using the Lexer package
+    result = tokenize(json_data)
+
+    # 6. Print the results
     print("Parsed Student Information:")
     print(f"First Name: {result['first_name']}")
     print(f"Last Name: {result['last_name']}")
@@ -81,4 +73,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -26,12 +26,12 @@ void print_${StructName}(${StructName} data) {
 
 def generate_c_code(c_struct: CStruct) -> str:
     header = generate_c_header(c_struct)
-
+    fields = "\n".join([f"    {field.c_type} {field.name};" for field in c_struct.fields])
     # Template data
     template_data = {
         'Header': f"{c_struct.name}.h",
         'StructName': c_struct.name,
-        'Fields': c_struct.fields
+        'Fields': c_struct.fields  # Pass the list of FieldInfo objects
     }
 
     # Render parser code using Template
@@ -59,13 +59,13 @@ def render_parser_template(tmpl: Template, data: dict) -> str:
     # Manual loop substitution for now
     field_lines = "\n".join(
         f'    printf("{field.name}: %s\\n", data.{field.name});'
-        for field in data['Fields']
+        for field in data['Fields']  # Iterate over FieldInfo objects
     )
     result = tmpl.safe_substitute(
         Header=data['Header'],
         StructName=data['StructName']
     )
-    return result.replace("% for field in Fields:\n", "").replace("% endfor", field_lines)
+    return result.replace("% for field in Fields:\n", field_lines).replace("% endfor", "")
 
 # Example usage:
 if __name__ == "__main__":
