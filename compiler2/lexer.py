@@ -1,6 +1,7 @@
 import re
 
 TOKEN_TYPES = {
+    'STRING': 'STRING',
     'NUMBER': 'NUMBER',
     'IDENTIFIER': 'IDENTIFIER',
     'PLUS': 'PLUS',
@@ -24,6 +25,7 @@ TOKEN_TYPES = {
     'IF': 'IF',
     'WHILE': 'WHILE',
     'FOR': 'FOR',
+    'IN':'IN',
     'DEF': 'DEF',
     'RETURN': 'RETURN',
     'COMMA': 'COMMA',
@@ -40,7 +42,7 @@ class Lexer:
         self.pos = 0
         self.current_char = self.text[self.pos]
         self.line = 1
-        self.indent_level = 0
+        self.indent_level = 0  # Track the current level of indentation
 
     def error(self, message):
         raise Exception(f"Lexer Error: {message}")
@@ -55,16 +57,43 @@ class Lexer:
     def skip_whitespace(self):
         while self.current_char is not None and self.current_char.isspace():
             if self.current_char == '\n':
-                self.line += 1
+                break
             self.advance()
 
     def get_next_token(self):
         self.skip_whitespace()
 
         if self.current_char is None:
-            eof_token = Token(TOKEN_TYPES['EOF'], None, self.line)
-            print(f"Generated EOF Token: {eof_token}")  # Debugging
-            return eof_token
+            # Finalize tokens by generating all remaining DEDENT tokens
+            if not hasattr(self, 'finalized_tokens'):
+                self.finalized_tokens = []
+                while self.indent_level > 0:
+                    self.indent_level -= 1
+                    dedent_token = Token(TOKEN_TYPES['DEDENT'], None, self.line)
+                    print(f"Generated DEDENT Token: {dedent_token}")  # Debugging
+                    self.finalized_tokens.append(dedent_token)
+
+                # Generate EOF token
+                eof_token = Token(TOKEN_TYPES['EOF'], None, self.line)
+                print(f"Generated EOF Token: {eof_token}")  # Debugging
+                self.finalized_tokens.append(eof_token)
+
+            # Return tokens from the finalized list
+            if self.finalized_tokens:
+                return self.finalized_tokens.pop(0)
+
+        # Handle '\n' (newline)
+        if self.current_char == '\n':
+            self.advance()
+            self.line += 1
+            newline_token = Token(TOKEN_TYPES['NEWLINE'], '\n', self.line)
+            print(f"Generated NEWLINE Token: {newline_token}")  # Debugging
+            # Check for indentation changes
+            current_indent = self.get_indent_level()
+            indent_dedent_tokens = self.handle_indentation(current_indent)
+            if indent_dedent_tokens:
+                return indent_dedent_tokens.pop(0)  # Return the first token
+            return newline_token
 
         # Handle '=' and '=='
         if self.current_char == '=':
@@ -150,11 +179,6 @@ class Lexer:
             self.advance()
             return Token(TOKEN_TYPES['RPAREN'], ')', self.line)
 
-        # Handle '\n' (newline)
-        if self.current_char == '\n':
-            self.advance()
-            return Token(TOKEN_TYPES['NEWLINE'], '\n', self.line)
-
         # Handle numbers
         if self.current_char.isdigit():
             return self.number()
@@ -184,6 +208,8 @@ class Lexer:
             return Token(TOKEN_TYPES['WHILE'], id_str, self.line)
         elif id_str == 'for':
             return Token(TOKEN_TYPES['FOR'], id_str, self.line)
+        elif id_str == 'in':
+            return Token(TOKEN_TYPES['IN'], id_str, self.line)
         elif id_str == 'def':
             return Token(TOKEN_TYPES['DEF'], id_str, self.line)
         elif id_str == 'return':
@@ -191,8 +217,27 @@ class Lexer:
         return Token(TOKEN_TYPES['IDENTIFIER'], id_str, self.line)
 
     def get_indent_level(self):
-        leading_spaces = len(self.text[self.pos:]) - len(self.text[self.pos:].lstrip())
-        return leading_spaces // 4  # Assuming 4 spaces for indentation
+        count = 0
+        while self.current_char == ' ':
+            count += 1
+            self.advance()
+        print(f"Current Indent Level: {count}, Previous Indent Level: {self.indent_level}")  # Debugging
+        return count
+
+    def handle_indentation(self, current_indent):
+        tokens = []
+        if current_indent > self.indent_level:
+            self.indent_level = current_indent
+            indent_token = Token(TOKEN_TYPES['INDENT'], None, self.line)
+            print(f"Generated INDENT Token: {indent_token}")  # Debugging
+            tokens.append(indent_token)
+        elif current_indent < self.indent_level:
+            while self.indent_level > current_indent:
+                self.indent_level -= 1
+                dedent_token = Token(TOKEN_TYPES['DEDENT'], None, self.line)
+                print(f"Generated DEDENT Token: {dedent_token}")  # Debugging
+                tokens.append(dedent_token)
+        return tokens
 
 class Token:
     def __init__(self, type_, value, line):

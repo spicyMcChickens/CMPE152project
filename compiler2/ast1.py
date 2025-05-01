@@ -27,8 +27,9 @@ class FunctionCall(ASTNode):
         self.args = args
 
 class Return(ASTNode):
-    def __init__(self, expr):
-        self.expr = expr
+    def __init__(self, value):
+        self.value = value  # The value being returned
+
 
 class Assign:
     def __init__(self, target, value):
@@ -57,4 +58,15 @@ class For:
 
 class Block:
     def __init__(self, statements):
-        self.statements = statements
+        self.body = statements  # Store the list of statements in the block
+
+    def __repr__(self):
+        return f"Block({self.body})"
+
+    def debug(self):
+        print("Block Debug:")
+        print(f"Body: {self.body}")
+
+class Str(ASTNode):
+    def __init__(self, value):
+        self.value = value

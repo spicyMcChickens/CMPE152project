@@ -10,6 +10,7 @@ class Parser:
         self.current_token = self.tokens[self.pos]
 
     def eat(self, token_type):
+        print(f"Eating token: {self.current_token}, expecting: {token_type}")  # Debugging
         if self.current_token.type == token_type:
             self.pos += 1
             if self.pos < len(self.tokens):
@@ -21,10 +22,10 @@ class Parser:
         statements = []
         while self.current_token.type != TOKEN_TYPES['EOF']:
             if self.current_token.type == TOKEN_TYPES['NEWLINE']:
-                self.eat(TOKEN_TYPES['NEWLINE'])
+                self.eat(TOKEN_TYPES['NEWLINE'])  # Skip NEWLINE tokens
             else:
                 statements.append(self.parse_statement())
-        return ast.Block(statements)
+        return Block(statements)
 
     def parse_statement(self):
         if self.current_token.type == TOKEN_TYPES['DEF']:
@@ -32,31 +33,27 @@ class Parser:
         elif self.current_token.type == TOKEN_TYPES['IF']:
             return self.parse_if_statement()
         elif self.current_token.type == TOKEN_TYPES['FOR']:
-            return self.parse_for_loop()
+            return self.parse_for_statement()
         elif self.current_token.type == TOKEN_TYPES['RETURN']:
             return self.parse_return_statement()
         else:
             expr = self.parse_expression()
-            if self.current_token.type == TOKEN_TYPES['ASSIGN']:
+            if self.current_token.type == TOKEN_TYPES['EQUAL']:
                 return self.parse_assignment(expr)
             return expr
 
     def parse_function_definition(self):
-        self.eat(TOKEN_TYPES['DEF'])
+        self.eat(TOKEN_TYPES['DEF'])  # Consume 'def'
         name = self.current_token.value
-        self.eat(TOKEN_TYPES['IDENTIFIER'])
-        self.eat(TOKEN_TYPES['LPAREN'])
-        params = self.parse_parameter_list()
-        self.eat(TOKEN_TYPES['RPAREN'])
-        self.eat(TOKEN_TYPES['COLON'])
-        self.eat(TOKEN_TYPES['NEWLINE'])
-        self.eat(TOKEN_TYPES['INDENT'])
-
-        body = self.parse_block()
-
-        self.eat(TOKEN_TYPES['DEDENT'])
-
-        return ast.FunctionDef(name, params, body)
+        self.eat(TOKEN_TYPES['IDENTIFIER'])  # Consume function name
+        self.eat(TOKEN_TYPES['LPAREN'])  # Consume '('
+        params = self.parse_parameter_list()  # Parse parameters
+        self.eat(TOKEN_TYPES['RPAREN'])  # Consume ')'
+        self.eat(TOKEN_TYPES['COLON'])  # Consume ':'
+        if self.current_token.type == TOKEN_TYPES['NEWLINE']:
+            self.eat(TOKEN_TYPES['NEWLINE'])  # Optionally consume newline
+        body = self.parse_block()  # Parse the indented block
+        return FunctionDef(name, params, body)
 
     def parse_parameter_list(self):
         params = []
@@ -71,48 +68,43 @@ class Parser:
 
     def parse_block(self):
         statements = []
-        while self.current_token.type not in (TOKEN_TYPES['DEDENT'], TOKEN_TYPES['EOF']):
-            print(f"Parsing block, current token: {self.current_token}")  # Debugging
+        self.eat(TOKEN_TYPES['INDENT'])  # Consume the INDENT token
+        while self.current_token.type != TOKEN_TYPES['DEDENT'] and self.current_token.type != TOKEN_TYPES['EOF']:
             if self.current_token.type == TOKEN_TYPES['NEWLINE']:
-                self.eat(TOKEN_TYPES['NEWLINE'])
-                continue
-            statements.append(self.parse_statement())
-        return ast.Block(statements)
+                self.eat(TOKEN_TYPES['NEWLINE'])  # Skip NEWLINE tokens
+            else:
+                statements.append(self.parse_statement())
+        if self.current_token.type == TOKEN_TYPES['DEDENT']:
+            self.eat(TOKEN_TYPES['DEDENT'])  # Consume the DEDENT token
+        return Block(statements)  # Return a Block object
 
     def parse_if_statement(self):
         self.eat(TOKEN_TYPES['IF'])
         condition = self.parse_expression()
         self.eat(TOKEN_TYPES['COLON'])
-        self.eat(TOKEN_TYPES['NEWLINE'])
-        self.eat(TOKEN_TYPES['INDENT'])
-        body = self.parse_block()
-        self.eat(TOKEN_TYPES['DEDENT'])
-        return ast.If(condition, body)
+        body = self.parse_block()  # Ensure body is parsed as a Block
+        return If(condition, body)
 
-    def parse_for_loop(self):
+    def parse_for_statement(self):
         self.eat(TOKEN_TYPES['FOR'])
-        var_name = self.current_token.value
-        self.eat(TOKEN_TYPES['IDENTIFIER'])
+        var = self.parse_primary()
         self.eat(TOKEN_TYPES['IN'])
         iterable = self.parse_expression()
         self.eat(TOKEN_TYPES['COLON'])
-        self.eat(TOKEN_TYPES['NEWLINE'])
-        self.eat(TOKEN_TYPES['INDENT'])
-        body = self.parse_block()
-        self.eat(TOKEN_TYPES['DEDENT'])
-        return ast.For(var_name, iterable, body)
+        body = self.parse_block()  # Ensure body is parsed as a Block
+        return For(var, iterable, body)
 
     def parse_return_statement(self):
         self.eat(TOKEN_TYPES['RETURN'])
         expr = self.parse_expression()
-        return ast.Return(expr)
+        return Return(expr)
 
     def parse_assignment(self, left):
-        if not isinstance(left, ast.Variable):
+        if not isinstance(left, Var):
             raise SyntaxError("Cannot assign to non-variable.")
-        self.eat(TOKEN_TYPES['ASSIGN'])
+        self.eat(TOKEN_TYPES['EQUAL'])
         value = self.parse_expression()
-        return ast.Assign(left.name, value)
+        return Assign(left.name, value)
 
     def parse_expression(self):
         return self.parse_binary_operation()
@@ -128,29 +120,29 @@ class Parser:
 
             self.eat(op.type)
             right = self.parse_binary_operation(op_prec + 1)
-            left = ast.BinOp(left, op.type, right)
+            left = BinOp(left, op.type, right)
 
         return left
 
     def get_operator_precedence(self, token):
         if token.type in (TOKEN_TYPES['PLUS'], TOKEN_TYPES['MINUS']):
             return 10
-        if token.type in (TOKEN_TYPES['STAR'], TOKEN_TYPES['SLASH']):
+        if token.type in (TOKEN_TYPES['MUL'], TOKEN_TYPES['DIV']):
             return 20
-        if token.type == TOKEN_TYPES['GT']:
+        if token.type in (TOKEN_TYPES['EQEQ'], TOKEN_TYPES['GT'], TOKEN_TYPES['LT']):
             return 5
-        return -1
+        return -1  # Default precedence for unknown tokens
 
     def parse_primary(self):
         token = self.current_token
 
         if token.type == TOKEN_TYPES['NUMBER']:
             self.eat(TOKEN_TYPES['NUMBER'])
-            return ast.Num(token.value)
+            return Num(token.value)
 
         if token.type == TOKEN_TYPES['STRING']:
             self.eat(TOKEN_TYPES['STRING'])
-            return ast.Str(token.value)
+            return Str(token.value)
 
         if token.type == TOKEN_TYPES['IDENTIFIER']:
             name = token.value
@@ -160,9 +152,9 @@ class Parser:
                 self.eat(TOKEN_TYPES['LPAREN'])
                 args = self.parse_argument_list()
                 self.eat(TOKEN_TYPES['RPAREN'])
-                return ast.FunctionCall(name, args)
+                return FunctionCall(name, args)
 
-            return ast.Variable(name)
+            return Var(name)
 
         if token.type == TOKEN_TYPES['LPAREN']:
             self.eat(TOKEN_TYPES['LPAREN'])
