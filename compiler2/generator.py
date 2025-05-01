@@ -7,7 +7,7 @@ class CodeGen:
     def generate(self, node):
         if isinstance(node, Block):
             print("Generating code for Block:")
-            print(f"Block body: {node.body}")  # Debugging output
+            #print(f"Block body: {node.body}")  # Debugging output
             for stmt in node.body:  # Iterate over the body of the block
                 self.generate(stmt)
 
